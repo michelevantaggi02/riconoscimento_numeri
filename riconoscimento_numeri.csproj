@@ -13,4 +13,13 @@
     <PackageReference Include="YoloDotNet" Version="2.2.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="models\ita.traineddata">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="models\yolov8m.onnx">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>

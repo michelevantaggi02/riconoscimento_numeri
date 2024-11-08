@@ -6,16 +6,22 @@ using YoloDotNet;
 using YoloDotNet.Extensions;
 using YoloDotNet.Models;
 
+
+
 class Program {
+
+
+    const string IMG_PATH = @"D:\riconoscimento_numeri\imgs\";
+
     static void Main(string[] args) {
 
         var model = new Yolo(new YoloOptions {
-            OnnxModel = @"models/yolov8m.onnx",
+            OnnxModel = @"models\yolov8m.onnx",
             ModelType = YoloDotNet.Enums.ModelType.ObjectDetection,
             Cuda = false,
         });
 
-        using var image = SKImage.FromEncodedData(@"imgs/img1.jpg");
+        using var image = SKImage.FromEncodedData(IMG_PATH + @"img1.jpg");
 
         var result = model.RunObjectDetection(image);
 
@@ -34,30 +40,31 @@ class Program {
 
         using var resultImage = image.Draw(result);
 
-        resultImage.Save(@"imgs/new_image.jpg", SKEncodedImageFormat.Jpeg, 80);
+        resultImage.Save(IMG_PATH + @"new_image.jpg", SKEncodedImageFormat.Jpeg, 80);
 
-        var engine = new TesseractEngine(@"models/ita.traineddata", "ita", EngineMode.Default) {
-            DefaultPageSegMode = PageSegMode.SingleWord
-        };
+        using var engine = new TesseractEngine(@"models", "ita", EngineMode.Default);
 
 
         for (int i = 0; i < result.Count; i++) {
             var item = result[i];
             using var temp = image.Subset(item.BoundingBox);
 
-            using var bitmap = SKBitmap.FromImage(temp);
+            string temp_path = IMG_PATH + @"cuts\" + i + ".jpg";
+            temp.Save(temp_path, SKEncodedImageFormat.Jpeg, 80);
 
-            using var page = engine.Process(Pix.LoadFromMemory(bitmap.Bytes));
+
+            using Pix pixImage = Pix.LoadFromFile(temp_path);
+
+            using var page = engine.Process(pixImage);
 
             string text = page.GetText();
 
             Console.WriteLine($"Item {i}: {text}");
             
-            
-            
 
-            temp.Save(@"imgs/cuts/" + i + ".jpg", SKEncodedImageFormat.Jpeg, 80);
         }
+
+
 
     }
 
