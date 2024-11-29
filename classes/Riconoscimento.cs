@@ -131,17 +131,56 @@ namespace riconoscimento_numeri.classes
         {
             Mat image = Cv2.ImRead(path, ImreadModes.Grayscale);
 
-            Mat thres = image.Threshold(120, 255 , ThresholdTypes.Binary);
+            Mat inverted = new Mat();
+
+            Cv2.BitwiseNot(image, inverted);
+
+            /* Mat threshes = new Mat();
+             List<Mat> thress = [];
+
+             for(int i = 100; i<= 180; i += 10)
+             {
+                 Console.WriteLine(i);
+                 Mat thres = inverted.Threshold(i, 255, ThresholdTypes.Binary);
+
+                   thress.Add(thres);
+             }
+             if (thress.Count > 0)
+             {
+                 Cv2.HConcat(thress, threshes);
+                 Cv2.NamedWindow("threshold " + path);
+
+                 Cv2.ImShow("threshold " + path, threshes);
+
+                 Cv2.WaitKey();
+                 Cv2.DestroyWindow("threshold " + path);
+             }*/
+
+            Mat thres = image.Threshold(130, 255, ThresholdTypes.Binary);
+            
+
+            
             thres.FindContours(out Point[][] contours, out _, RetrievalModes.Tree, ContourApproximationModes.ApproxSimple);
 
-            thres.DrawContours(contours, -1, Scalar.Red);
+            List<Point[]> approx = [];
 
+            foreach (Point[] contour in contours)
+            {
+                Point[] appro = Cv2.ApproxPolyDP(contour, 0.12 * Cv2.ArcLength(contour, true), true);
+                approx.Add(appro);
+
+            }
+
+            thres = thres.CvtColor(ColorConversionCodes.GRAY2RGB);
+            /*thres.DrawContours(contours, -1, Scalar.Red);
+            thres.DrawContours(approx, -1, Scalar.Green);
             Cv2.NamedWindow("threshold " + path);
 
             Cv2.ImShow("threshold " + path, thres);
 
             Cv2.WaitKey();
-            Cv2.DestroyWindow("threshold " + path);
+            Cv2.DestroyWindow("threshold " + path);*/
+
 
 
 
@@ -189,6 +228,7 @@ namespace riconoscimento_numeri.classes
             //can't use a single engine with multithreading
             using TesseractEngine engine = new(@"models", "ita", EngineMode.Default);
 
+            engine.SetVariable("tessedit_char_whitelist", "0123456789");
 
 
             test_filter(cut_path);
