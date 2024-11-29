@@ -127,6 +127,26 @@ namespace riconoscimento_numeri.classes
 
         }
 
+        private void test_filter(string path)
+        {
+            Mat image = Cv2.ImRead(path, ImreadModes.Grayscale);
+
+            Mat thres = image.Threshold(120, 255 , ThresholdTypes.Binary);
+            thres.FindContours(out Point[][] contours, out _, RetrievalModes.Tree, ContourApproximationModes.ApproxSimple);
+
+            thres.DrawContours(contours, -1, Scalar.Red);
+
+            Cv2.NamedWindow("threshold " + path);
+
+            Cv2.ImShow("threshold " + path, thres);
+
+            Cv2.WaitKey();
+            Cv2.DestroyWindow("threshold " + path);
+
+
+
+            Cv2.ImWrite(path, thres);
+        }
 
         private SKImage filter_image(SKImage image)
         {
@@ -171,6 +191,7 @@ namespace riconoscimento_numeri.classes
 
 
 
+            test_filter(cut_path);
 
             using Pix pixImage = Pix.LoadFromFile(cut_path);
 
