@@ -131,9 +131,6 @@ namespace riconoscimento_numeri.classes
         {
             Mat image = Cv2.ImRead(path, ImreadModes.Grayscale);
 
-            Mat inverted = new Mat();
-
-            Cv2.BitwiseNot(image, inverted);
 
             /* Mat threshes = new Mat();
              List<Mat> thress = [];
@@ -156,8 +153,9 @@ namespace riconoscimento_numeri.classes
                  Cv2.DestroyWindow("threshold " + path);
              }*/
 
-            Mat thres = image.Threshold(130, 255, ThresholdTypes.Binary);
+            Mat thres = image.AdaptiveThreshold(255, AdaptiveThresholdTypes.GaussianC, ThresholdTypes.Binary, 15, 3);
             
+
 
             
             thres.FindContours(out Point[][] contours, out _, RetrievalModes.Tree, ContourApproximationModes.ApproxSimple);
@@ -171,15 +169,15 @@ namespace riconoscimento_numeri.classes
 
             }
 
-            thres = thres.CvtColor(ColorConversionCodes.GRAY2RGB);
-            /*thres.DrawContours(contours, -1, Scalar.Red);
-            thres.DrawContours(approx, -1, Scalar.Green);
+            //thres = thres.CvtColor(ColorConversionCodes.GRAY2RGB);
+            //thres.DrawContours(contours, -1, Scalar.Red);
+            //thres.DrawContours(approx, -1, Scalar.Green);
             Cv2.NamedWindow("threshold " + path);
 
             Cv2.ImShow("threshold " + path, thres);
 
             Cv2.WaitKey();
-            Cv2.DestroyWindow("threshold " + path);*/
+            Cv2.DestroyWindow("threshold " + path);
 
 
 
