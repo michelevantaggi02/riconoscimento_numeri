@@ -5,7 +5,8 @@ using Tesseract;
 class Program {
 
 
-    const string IMG_PATH = @"D:\riconoscimento_numeri\imgs\";
+
+    const string IMG_PATH = @"imgs\";
 
 
     
@@ -13,8 +14,9 @@ class Program {
     static void Main(string[] args) {
 
         Riconoscimento riconoscimento = new();
+        string PROJECT_DIR = Directory.GetParent(Environment.CurrentDirectory).Parent.Parent.FullName;
 
-        string path = Path.Combine(IMG_PATH, @"mini\");
+        string path = Path.Combine(PROJECT_DIR, IMG_PATH, @"test_audi.png");
 
         riconoscimento.recognize(path);
 

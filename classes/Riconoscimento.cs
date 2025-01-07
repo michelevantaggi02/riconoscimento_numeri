@@ -6,6 +6,9 @@ using YoloDotNet.Extensions;
 using YoloDotNet.Models;
 using static System.Net.Mime.MediaTypeNames;
 using OpenCvSharp;
+using System.ComponentModel;
+using System.IO;
+using System.Numerics;
 
 namespace riconoscimento_numeri.classes
 {
@@ -127,9 +130,55 @@ namespace riconoscimento_numeri.classes
 
         }
 
-        private void test_filter(string path)
+        private Mat threshold( Mat image)
         {
-            Mat image = Cv2.ImRead(path, ImreadModes.Grayscale);
+            
+            Mat hsv = image.CvtColor(ColorConversionCodes.BGR2HSV);
+
+            InputArray lower_bound = InputArray.Create([98, 0, 127]);
+            InputArray upper_bound = InputArray.Create([155, 90, 255]);
+
+
+
+            return hsv.InRange(lower_bound, upper_bound);
+        }
+
+        private Mat[] calc_epsilon(Mat thres, Mat image, double e)
+        { 
+
+            thres.FindContours(out Point[][] contours, out _, RetrievalModes.Tree, ContourApproximationModes.ApproxSimple);
+
+            List<Mat> approxed = [];
+
+            foreach (Point[] p in contours)
+            {
+                double epsilon = e * Cv2.ArcLength(p, false);
+
+                Point[] approx = Cv2.ApproxPolyDP(p, epsilon, true);
+                OpenCvSharp.Rect bounds = Cv2.BoundingRect(approx);
+
+                if (bounds.Width > 20 && bounds.Height > 20 && approx.Length == 3)
+                {
+
+                    Mat cut = new Mat(image, bounds);
+
+                    
+                    approxed.Add(cut);
+                }
+            }
+
+            return [.. approxed];
+
+
+        }
+
+        private Mat[] test_filter(string path)
+        {
+            Mat image = Cv2.ImRead(path, ImreadModes.Color);
+            Cv2.NamedWindow("Cut");
+            Cv2.ImShow("Cut", image);
+            Cv2.WaitKey();
+            Cv2.DestroyAllWindows();
 
 
             /* Mat threshes = new Mat();
@@ -153,21 +202,8 @@ namespace riconoscimento_numeri.classes
                  Cv2.DestroyWindow("threshold " + path);
              }*/
 
-            Mat thres = image.AdaptiveThreshold(255, AdaptiveThresholdTypes.GaussianC, ThresholdTypes.Binary, 15, 3);
-            
-
-
-            
-            thres.FindContours(out Point[][] contours, out _, RetrievalModes.Tree, ContourApproximationModes.ApproxSimple);
-
-            List<Point[]> approx = [];
-
-            foreach (Point[] contour in contours)
-            {
-                Point[] appro = Cv2.ApproxPolyDP(contour, 0.12 * Cv2.ArcLength(contour, true), true);
-                approx.Add(appro);
-
-            }
+            Mat thres = threshold(image); //image.AdaptiveThreshold(255, AdaptiveThresholdTypes.GaussianC, ThresholdTypes.Binary, 15, 3);
+            return calc_epsilon(thres, image,  0.07110000000000001);
 
             //thres = thres.CvtColor(ColorConversionCodes.GRAY2RGB);
             //thres.DrawContours(contours, -1, Scalar.Red);
@@ -219,6 +255,7 @@ namespace riconoscimento_numeri.classes
 
         }
 
+        
         private void recognize_number(string cut_path)
         {
 
@@ -229,16 +266,28 @@ namespace riconoscimento_numeri.classes
             engine.SetVariable("tessedit_char_whitelist", "0123456789");
 
 
-            test_filter(cut_path);
+            Mat[] images = test_filter(cut_path);
 
-            using Pix pixImage = Pix.LoadFromFile(cut_path);
+            Console.WriteLine("Recognizing text");
+
+            foreach (Mat image in images)
+            {
+
+                using Pix pixImage = Pix.LoadFromMemory(image.ToBytes());
+
+                using var page = engine.Process(pixImage);
+
+                string text = page.GetText();
+
+                Console.WriteLine($"Item: {text}");
+                Cv2.NamedWindow("Cut");
+                Cv2.ImShow("Cut", image);
+                Cv2.WaitKey();
+                Cv2.DestroyAllWindows();
+            }
 
 
-            using var page = engine.Process(pixImage);
-
-            string text = page.GetText();
-
-            Console.WriteLine($"Item: {text}");
+            
         }
     }
 }
