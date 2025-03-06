@@ -15,11 +15,13 @@ namespace riconoscimento_numeri.classes
             public float Confidence { get; set; }
         }
 
-        public static int[] Recognize(YoloDetection detection)
+        public static TesseractEngine engine = new TesseractEngine(@"C:\Users\michi\Desktop\riconoscimento_numeri\models\", "eng", EngineMode.Default);
+
+    public static int[] Recognize(YoloDetection detection)
         {
             Mat thres = ManipolazioneImmagini.Threshold(detection.Image);
 
-            Console.WriteLine($"Detection count: {detection.Detections.Count}");
+            //Console.WriteLine($"Detection count: {detection.Detections.Count}");
 
             List<int> numbers = [];
 
@@ -28,7 +30,7 @@ namespace riconoscimento_numeri.classes
             {
                 Rect bounds = detection.GetBounds(obj);
 
-                Console.WriteLine($"Bounds converted: Left {bounds.Left}, Top {bounds.Top}, Width {bounds.Width}, Height {bounds.Height}");
+                //Console.WriteLine($"Bounds converted: Left {bounds.Left}, Top {bounds.Top}, Width {bounds.Width}, Height {bounds.Height}");
 
                 Rect cutRect = new Rect(bounds.Left, bounds.Top, bounds.Width, bounds.Height);
 
@@ -41,7 +43,7 @@ namespace riconoscimento_numeri.classes
 
                 }
 
-                Console.WriteLine($"Rows: {cutRect.Top}-{cutRect.Bottom}, Cols: {cutRect.Left} - {cutRect.Right}");
+                //Console.WriteLine($"Rows: {cutRect.Top}-{cutRect.Bottom}, Cols: {cutRect.Left} - {cutRect.Right}");
 
                 Mat cut = thres.SubMat(cutRect);
 
@@ -49,7 +51,7 @@ namespace riconoscimento_numeri.classes
                 int number = -1;
                 float conf = 0.0f;
 
-                Console.WriteLine($"Squares: {squares.Length}");
+                //Console.WriteLine($"Squares: {squares.Length}");
 
                 foreach (Mat square in squares)
                 {
@@ -66,7 +68,7 @@ namespace riconoscimento_numeri.classes
 
                 if (number == -1)
                 {
-                    Console.WriteLine("Checking with different method");
+                    //Console.WriteLine("Checking with different method");
                     Mat kernel = Mat.Ones(MatType.CV_8U, [1, 3]);
 
                     cut = cut.MorphologyEx(MorphTypes.Close, kernel);
@@ -75,10 +77,10 @@ namespace riconoscimento_numeri.classes
 
                     Cv2.FindContours(cut, out var contours, out var hierarchy, RetrievalModes.List, ContourApproximationModes.ApproxNone);
 
-                    Mat conv = new();
+                    /*Mat conv = new();
                     Cv2.CvtColor(cut, conv, ColorConversionCodes.GRAY2RGB);
 
-                    Cv2.DrawContours(conv, contours, -1, Scalar.Red, 1);
+                    Cv2.DrawContours(conv, contours, -1, Scalar.Red, 1);*/
 
                     List<Point[]> filtered = [];
 
@@ -86,11 +88,11 @@ namespace riconoscimento_numeri.classes
                     {
                         Rect rect = Cv2.BoundingRect(c);
 
-                        Cv2.Rectangle(conv, rect, Scalar.Red, 1);
+                        //Cv2.Rectangle(conv, rect, Scalar.Red, 1);
 
                         if ( ((double) rect.Height) /  ((double)rect.Width) > 1.2)
                         {
-                            Cv2.Rectangle(conv, rect, Scalar.Blue, 2);
+                            //Cv2.Rectangle(conv, rect, Scalar.Blue, 2);
                             filtered.Add(c);
                         }
 
@@ -102,7 +104,7 @@ namespace riconoscimento_numeri.classes
                     foreach(var p in merged)
                     {
                         Rect b = Cv2.BoundingRect(p);
-                        Cv2.Rectangle(conv, b, Scalar.Green, 3);
+                        //Cv2.Rectangle(conv, b, Scalar.Green, 3);
                     }
 
                     while (number == -1 && merged.Count != 0)
@@ -129,20 +131,16 @@ namespace riconoscimento_numeri.classes
 
                             TesseractPrediction prediction = RunPrediction(cut2);
 
-                            Console.WriteLine($"Confidence: {prediction.Confidence}");
+                            //Console.WriteLine($"Confidence: {prediction.Confidence}");
                             number = prediction.Number;
                         }
 
                         merged.Remove(largest);
 
                     }
-                    Cv2.ImShow("Threshold", thres);
-                    Cv2.ImShow("Converted", conv);
-                    Cv2.WaitKey(0);
-                    Cv2.DestroyAllWindows();
                 }
 
-                Console.WriteLine($"Number: {number}");
+                //Console.WriteLine($"Number: {number}");
 
                 numbers.Add(number);
 
@@ -154,7 +152,7 @@ namespace riconoscimento_numeri.classes
         private static TesseractPrediction RunPrediction(Mat image)
         {
             TesseractPrediction prediction = new() { Confidence = 0, Number = -1};
-            using TesseractEngine engine = new TesseractEngine(@"C:\Users\michi\Desktop\riconoscimento_numeri\models\", "eng", EngineMode.Default);
+            
             engine.SetVariable("tessedit_char_whitelist", "0123456789");
             engine.DefaultPageSegMode = PageSegMode.SingleLine;
             using Pix pix = Pix.LoadFromMemory(image.ToBytes());

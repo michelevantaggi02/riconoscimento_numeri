@@ -77,12 +77,27 @@ namespace riconoscimento_numeri.classes
             using var image = SKImage.FromEncodedData(image_path);
             var result = model.RunObjectDetection(image);
 
+            using SKBitmap bitmap = SKBitmap.FromImage(image);
+
+            SKPixmap pixmap = new();
+
+            if (!bitmap.PeekPixels(pixmap))
+            {
+                throw new Exception("Impossibile ottenere i pixel");
+            }
+
+            IntPtr data = pixmap.GetPixels();
+
+            Mat mat = Mat.FromPixelData(bitmap.Height, bitmap.Width, MatType.CV_8UC4, data);
+
+            Cv2.CvtColor(mat, mat, ColorConversionCodes.BGRA2BGR);
+            
             //save_result(image, image_path, result);
 
             return new YoloDetection
             {
-                Detections = result.Where(x => x.Confidence > 0.7 && x.Label.Name.Equals("car")).ToList(),
-                ImagePath = image_path
+                Detections = result.Where(x => x.Label.Name.Equals("car")).ToList(),
+                Image = mat,
             };
 
         }
@@ -113,13 +128,10 @@ namespace riconoscimento_numeri.classes
             };
 
 
-            Console.WriteLine(capture.Fps);
-            Console.WriteLine(capture.FrameCount);
 
             var result = model.RunObjectDetection(videoOptions);
             List<YoloDetection> detections = new();
 
-            Console.WriteLine($"Total detection results: {result.Count}");
 
 
             foreach (var item in result)
