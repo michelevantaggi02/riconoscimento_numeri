@@ -24,6 +24,8 @@ namespace riconoscimento_numeri.classes
         }
 
         public static Mat[] FindSquares(Mat image)
+
+            
         {
             Mat[] squares = CalcEpsilon(image);
             List<Mat> cuts = [];
@@ -36,8 +38,10 @@ namespace riconoscimento_numeri.classes
                     int s = square.Height / 3;
                     Rect changedRect = new Rect(0, s, square.Width, square.Height - (s));
 
-                    checkMat = square.SubMat(changedRect);
+                    checkMat = new Mat(square, changedRect);
                 }
+
+
 
                 Mat result = ApplyFilters(checkMat);
 
@@ -133,6 +137,7 @@ namespace riconoscimento_numeri.classes
 
             
             ConcurrentBag<Point[]> cleared = new();
+
             Parallel.ForEach(contours, (cont) =>
             {
                 Point[]? clearedCont = CheckPoints(cont, image.Width, image.Height);
@@ -140,10 +145,10 @@ namespace riconoscimento_numeri.classes
                 {
                     cleared.Add(clearedCont);
                 }
-                else
-                {
-                }
             });
+
+            image.DrawContours(cleared, -1, Scalar.Black, -1);
+
             return image;
         }
 
@@ -177,13 +182,13 @@ namespace riconoscimento_numeri.classes
                 {
 
                     //Console.WriteLine($"{p.X}, {p.Y}");
-                    if (p.X < 2 || p.Y == 0 || p.X == W - 1)
+                    if (p.X < 2 || p.Y < 2 || p.X >= W - 1)
                     {
                         Eliminable = true;
                     }
                     else
                     {
-                        double dist = Math.Sqrt(Math.Pow(p.X, 2) + Math.Pow(p.Y, 2));
+                        double dist = Math.Sqrt(Math.Pow(p.X - (W / 2), 2) + Math.Pow(p.Y - (H / 2), 2));
                         if (dist < DistanzaMinima)
                         {
                             DistanzaMinima = dist;
@@ -196,6 +201,8 @@ namespace riconoscimento_numeri.classes
                     return c;
                 }
             }
+
+
 
             return null;
         }

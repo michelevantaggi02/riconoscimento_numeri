@@ -21,6 +21,11 @@ namespace riconoscimento_numeri.classes
         {
             Mat thres = ManipolazioneImmagini.Threshold(detection.Image);
 
+            /*Cv2.ImShow("thres", thres);
+            int key = Cv2.WaitKey(0);
+            Cv2.DestroyAllWindows();*/
+            int key = 0;
+
             //Console.WriteLine($"Detection count: {detection.Detections.Count}");
 
             List<int> numbers = [];
@@ -32,7 +37,7 @@ namespace riconoscimento_numeri.classes
 
                 //Console.WriteLine($"Bounds converted: Left {bounds.Left}, Top {bounds.Top}, Width {bounds.Width}, Height {bounds.Height}");
 
-                Rect cutRect = new Rect(bounds.Left, bounds.Top, bounds.Width, bounds.Height);
+                Rect cutRect = new(bounds.Left, bounds.Top, bounds.Width, bounds.Height);
 
                 if (((double) bounds.Width) / ((double) bounds.Height) >= 2 && bounds.Left != 0)
                 {
@@ -45,7 +50,7 @@ namespace riconoscimento_numeri.classes
 
                 //Console.WriteLine($"Rows: {cutRect.Top}-{cutRect.Bottom}, Cols: {cutRect.Left} - {cutRect.Right}");
 
-                Mat cut = thres.SubMat(cutRect);
+                Mat cut = new(thres, cutRect);
 
                 Mat[] squares = ManipolazioneImmagini.FindSquares(cut);
                 int number = -1;
@@ -56,10 +61,16 @@ namespace riconoscimento_numeri.classes
                 foreach (Mat square in squares)
                 {
 
-
                     TesseractPrediction prediction = RunPrediction(square);
+                    if (key == 13)
+                    {
+                        Console.WriteLine(prediction.Number);
+                        Cv2.ImShow("square", square);
+                        Cv2.WaitKey(0);
+                        Cv2.DestroyAllWindows();
+                    }
 
-                    if(prediction.Confidence > conf)
+                    if (prediction.Confidence > conf)
                     {
                         number = prediction.Number;
                         conf = prediction.Confidence;
@@ -77,10 +88,10 @@ namespace riconoscimento_numeri.classes
 
                     Cv2.FindContours(cut, out var contours, out var hierarchy, RetrievalModes.List, ContourApproximationModes.ApproxNone);
 
-                    /*Mat conv = new();
+                    Mat conv = new();
                     Cv2.CvtColor(cut, conv, ColorConversionCodes.GRAY2RGB);
 
-                    Cv2.DrawContours(conv, contours, -1, Scalar.Red, 1);*/
+                    Cv2.DrawContours(conv, contours, -1, Scalar.Red, 1);
 
                     List<Point[]> filtered = [];
 
@@ -88,23 +99,35 @@ namespace riconoscimento_numeri.classes
                     {
                         Rect rect = Cv2.BoundingRect(c);
 
-                        //Cv2.Rectangle(conv, rect, Scalar.Red, 1);
+                        Cv2.Rectangle(conv, rect, Scalar.Red, 1);
 
                         if ( ((double) rect.Height) /  ((double)rect.Width) > 1.2)
                         {
-                            //Cv2.Rectangle(conv, rect, Scalar.Blue, 2);
+                            Cv2.Rectangle(conv, rect, Scalar.Blue, 2);
                             filtered.Add(c);
                         }
 
 
                     }
-
+                    if (key == 13)
+                    {
+                        Cv2.ImShow("premerge", conv);
+                        Cv2.WaitKey(0);
+                        Cv2.DestroyAllWindows();
+                    }
                     List<Point[]> merged = MergeContours([.. filtered]);
 
                     foreach(var p in merged)
                     {
                         Rect b = Cv2.BoundingRect(p);
-                        //Cv2.Rectangle(conv, b, Scalar.Green, 3);
+                        Cv2.Rectangle(conv, b, Scalar.Green, 3);
+                    }
+
+                    if(key == 13)
+                    {
+                        Cv2.ImShow("square", conv);
+                        Cv2.WaitKey(0);
+                        Cv2.DestroyAllWindows();
                     }
 
                     while (number == -1 && merged.Count != 0)
@@ -125,11 +148,14 @@ namespace riconoscimento_numeri.classes
 
                             cut2 = cut2.Dilate(dilateKernel);
 
-                            /*Cv2.ImShow("number", cut2);
-                            Cv2.WaitKey(0);
-                            Cv2.DestroyAllWindows();*/
-
                             TesseractPrediction prediction = RunPrediction(cut2);
+                            if (key == 13)
+                            {
+                                Console.WriteLine(prediction.Number);
+                                Cv2.ImShow("square", cut2);
+                                Cv2.WaitKey(0);
+                                Cv2.DestroyAllWindows();
+                            }
 
                             //Console.WriteLine($"Confidence: {prediction.Confidence}");
                             number = prediction.Number;
@@ -184,12 +210,46 @@ namespace riconoscimento_numeri.classes
             return largest;
         }
 
+        private static bool AreClose(Point[] c1, Point[] c2, double threshold = 40)
+        {
+            Rect Rect1 = Cv2.BoundingRect(c1);
+            Rect Rect2 = Cv2.BoundingRect(c2);
+
+
+            bool L2R1 = Math.Abs(Rect2.Left - Rect1.Right) < threshold;
+            bool L1R2 = Math.Abs(Rect2.Right - Rect1.Left) < threshold;
+
+            bool L1L2 = Math.Abs(Rect2.Left - Rect1.Left) < threshold;
+            bool R1R2 = Math.Abs(Rect2.Right - Rect1.Right) < threshold;
+
+
+            bool horizontal = (L2R1 || L1R2) || (L1L2 || R1R2);
+
+            if (horizontal)
+            {
+                return horizontal;
+            }
+
+            bool T1B2 = Math.Abs(Rect1.Top - Rect2.Bottom) < threshold;
+            bool T2B1 = Math.Abs(Rect1.Bottom - Rect2.Top) < threshold;
+            
+            bool T1T2 = Math.Abs(Rect1.Top - Rect2.Top) < threshold;
+            bool B1B2 = Math.Abs(Rect1.Bottom - Rect2.Bottom) < threshold;
+
+            bool vertical = (T1B2 || T2B1) || (T1T2 || B1B2);
+
+            return vertical;
+        }
+
         private static List<Point[]> MergeContours(List<Point[]> contours, double threshold = 40)
         {
             bool changes = true;
             bool[] taken = new bool[contours.Count];
+
+
             while (changes)
             {
+                Console.WriteLine($"Contours length: {contours.Count}");
                 changes = false;
                 List<Point[]> mergedContours = [];
                 taken = new bool[contours.Count];
@@ -198,6 +258,7 @@ namespace riconoscimento_numeri.classes
                 {
                     if (taken[i])
                     {
+                        Console.WriteLine(contours[i]);
                         continue;
                     }
 
@@ -205,21 +266,18 @@ namespace riconoscimento_numeri.classes
 
                     Point[] current = contours[i];
                     Point[] newContour = contours[i];
-                    Rect currentRect = Cv2.BoundingRect(current);
+
                     for (int j = 0; j < contours.Count; j++)
                     {
                         if (i != j && !taken[j])
                         {
                             Point[] next = contours[j];
-                            Rect nextRect = Cv2.BoundingRect(next);
-                            if (Math.Abs(currentRect.X - nextRect.X) < threshold && Math.Abs(currentRect.Y - nextRect.Y) < threshold)
+                            if (AreClose(current, next))
                             {
+                                Console.WriteLine($"Merging 2 contours..");
 
-                                Point[] temp = new Point[current.Length + next.Length];
-                                current.CopyTo(temp, 0);
-                                next.CopyTo(temp, current.Length);
-
-                                newContour = temp;
+                                newContour = [.. newContour, .. next];
+                                Console.WriteLine($"{current.Length}'+ {next.Length} = {newContour.Length}");
                                 taken[j] = true;
                                 changes = true;
                             }

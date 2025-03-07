@@ -76,8 +76,9 @@ class Program {
 
         List<Mat> images = [];
 
+        HashSet<int> passati = [];
 
-        for(int i = 1; i <= frames; i++)
+        for (int i = 1; i <= frames; i++)
         {
             watch.Restart();
             using var image = SKImage.FromEncodedData(@"C:\Users\michi\Desktop\riconoscimento_numeri\vids\corti\frames\video1\" + $"{i}.jpeg");
@@ -120,6 +121,11 @@ class Program {
 
             watch.Stop();
 
+            foreach (var item in numbers)
+            {
+                passati.Add(item);
+            }
+
             tesseractTime += watch.ElapsedMilliseconds;
 
             watch.Restart();
@@ -129,9 +135,10 @@ class Program {
                 if (numbers[j] != -1)
                 {
                     ObjectDetection det = detection.Detections[j];
-                    Cv2.PutText(detection.Image, numbers[j].ToString(), new Point(det.BoundingBox.Left + (det.BoundingBox.Width /3), det.BoundingBox.Top + (det.BoundingBox.Height / 3)), HersheyFonts.HersheySimplex, 2, Scalar.Black, 4);
+                    Cv2.PutText(detection.Image, numbers[j].ToString(), new Point(det.BoundingBox.Left + (det.BoundingBox.Width /3), det.BoundingBox.Top + (det.BoundingBox.Height / 3)), HersheyFonts.HersheySimplex, 2, Scalar.Black, 6);
                     Cv2.PutText(detection.Image, numbers[j].ToString(), new Point(det.BoundingBox.Left + (det.BoundingBox.Width / 3), det.BoundingBox.Top + (det.BoundingBox.Height / 3)), HersheyFonts.HersheySimplex, 2, Scalar.White, 2);
-                    
+                    Cv2.PutText(detection.Image, String.Join(",", passati), new Point(5, detection.Image.Height - 10), HersheyFonts.HersheySimplex, 1, Scalar.Black, 10);
+                    Cv2.PutText(detection.Image, String.Join(",", passati), new Point(5, detection.Image.Height - 10), HersheyFonts.HersheySimplex, 1, Scalar.White, 2);
                 }
 
                 
@@ -176,7 +183,7 @@ class Program {
 
         Console.WriteLine($"FPS: {detections.Count} / ({fileSec:F2})s ({yoloSec:F2}s + {tesseractSec:F2}s)  = { (detections.Count / (fileSec + yoloSec + tesseractSec)):F2}");
 
-        Console.Write($"Avg retrieve: {(fileReadTime / detections.Count)}ms, Avg Yolo: {(yoloTime / detections.Count)}ms, Avg Tesseract: {(tesseractTime / detections.Count)}ms");
+        Console.WriteLine($"Avg retrieve: {(fileReadTime / detections.Count)}ms, Avg Yolo: {(yoloTime / detections.Count)}ms, Avg Tesseract: {(tesseractTime / detections.Count)}ms");
         riconoscimento.model.Dispose();
         RiconoscimentoTesseract.engine.Dispose();
 
