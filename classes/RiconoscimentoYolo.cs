@@ -1,33 +1,26 @@
 ﻿
 using SkiaSharp;
-using Tesseract;
 using YoloDotNet;
-using YoloDotNet.Extensions;
 using YoloDotNet.Models;
-using static System.Net.Mime.MediaTypeNames;
 using OpenCvSharp;
-using System.ComponentModel;
-using System.IO;
-using System.Numerics;
-using System.Collections.Concurrent;
 
 namespace riconoscimento_numeri.classes
 {
     internal class RiconoscimentoYolo
     {
 
-        public Yolo model = new Yolo(new YoloOptions
+        public Yolo model;
+
+
+
+        public RiconoscimentoYolo(string yoloPath = @"models\yolov8m.onnx")
         {
-            OnnxModel = @"models\yolov8m.onnx",
-            ModelType = YoloDotNet.Enums.ModelType.ObjectDetection,
-            Cuda = true,
-        });
-
-
-
-        public RiconoscimentoYolo()
-        {
-
+            model = new Yolo(new YoloOptions
+            {
+                OnnxModel = yoloPath,
+                ModelType = YoloDotNet.Enums.ModelType.ObjectDetection,
+                Cuda = true,
+            });
         }
 
         public YoloDetection[] recognize(string path)
@@ -75,6 +68,7 @@ namespace riconoscimento_numeri.classes
             }
 
             using var image = SKImage.FromEncodedData(image_path);
+
             var result = model.RunObjectDetection(image);
 
             using SKBitmap bitmap = SKBitmap.FromImage(image);

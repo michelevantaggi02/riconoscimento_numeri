@@ -24,8 +24,6 @@ namespace riconoscimento_numeri.classes
         }
 
         public static Mat[] FindSquares(Mat image)
-
-            
         {
             Mat[] squares = CalcEpsilon(image);
             List<Mat> cuts = [];
@@ -44,6 +42,8 @@ namespace riconoscimento_numeri.classes
 
 
                 Mat result = ApplyFilters(checkMat);
+                int borderSize = 15;
+                result = result.CopyMakeBorder(borderSize, borderSize, borderSize, borderSize, BorderTypes.Constant, Scalar.White);
 
                 cuts.Add(result);
             }
@@ -123,7 +123,7 @@ namespace riconoscimento_numeri.classes
             return ClearImage(enhThres);
         }
 
-        private static Mat ClearImage(Mat image)
+        public static Mat ClearImage(Mat image)
         {
             Cv2.BitwiseNot(image, image);
             image = ParallelClearContours(image);
@@ -155,7 +155,7 @@ namespace riconoscimento_numeri.classes
         private static Point[]? RemoveSmall(Point[] c)
         {
             double area = Cv2.ContourArea(c);
-            if (area < 85 || area > 550)
+            if (area < 85 || area > 570)
             {
                 return c;
             }

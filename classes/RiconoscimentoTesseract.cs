@@ -1,7 +1,6 @@
 ﻿using OpenCvSharp;
 using Tesseract;
 using YoloDotNet.Models;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 using Rect = OpenCvSharp.Rect;
 
 namespace riconoscimento_numeri.classes
@@ -9,15 +8,11 @@ namespace riconoscimento_numeri.classes
     public class RiconoscimentoTesseract
     {
 
-        private class TesseractPrediction
-        {
-            public int Number { get; set; }
-            public float Confidence { get; set; }
-        }
+        
 
         public static TesseractEngine engine = new TesseractEngine(@"C:\Users\michi\Desktop\riconoscimento_numeri\models\", "eng", EngineMode.Default);
 
-    public static int[] Recognize(YoloDetection detection)
+    public static TesseractPrediction[][] Recognize(YoloDetection detection)
         {
             Mat thres = ManipolazioneImmagini.Threshold(detection.Image);
 
@@ -26,14 +21,16 @@ namespace riconoscimento_numeri.classes
             Cv2.DestroyAllWindows();*/
             int key = 0;
 
+
             //Console.WriteLine($"Detection count: {detection.Detections.Count}");
 
-            List<int> numbers = [];
+            List<TesseractPrediction[]> numbers = [];
 
 
             foreach (ObjectDetection obj in detection.Detections)
             {
-                Rect bounds = detection.GetBounds(obj);
+                
+                Rect bounds = YoloDetection.GetBounds(obj);
 
                 //Console.WriteLine($"Bounds converted: Left {bounds.Left}, Top {bounds.Top}, Width {bounds.Width}, Height {bounds.Height}");
 
@@ -53,14 +50,12 @@ namespace riconoscimento_numeri.classes
                 Mat cut = new(thres, cutRect);
 
                 Mat[] squares = ManipolazioneImmagini.FindSquares(cut);
-                int number = -1;
-                float conf = 0.0f;
+                List<TesseractPrediction> predictions = [];
 
                 //Console.WriteLine($"Squares: {squares.Length}");
 
                 foreach (Mat square in squares)
                 {
-
                     TesseractPrediction prediction = RunPrediction(square);
                     if (key == 13)
                     {
@@ -70,17 +65,18 @@ namespace riconoscimento_numeri.classes
                         Cv2.DestroyAllWindows();
                     }
 
-                    if (prediction.Confidence > conf)
+                    
+
+                    if (prediction.Confidence > 0)
                     {
-                        number = prediction.Number;
-                        conf = prediction.Confidence;
+                        predictions.Add(prediction);
                     }
                 }
 
-                if (number == -1)
+                if (predictions.Count == 0)
                 {
                     //Console.WriteLine("Checking with different method");
-                    Mat kernel = Mat.Ones(MatType.CV_8U, [1, 3]);
+                    Mat kernel = Mat.Ones(MatType.CV_8U, [2, 3]);
 
                     cut = cut.MorphologyEx(MorphTypes.Close, kernel);
 
@@ -130,19 +126,21 @@ namespace riconoscimento_numeri.classes
                         Cv2.DestroyAllWindows();
                     }
 
-                    while (number == -1 && merged.Count != 0)
+                    while (predictions.Count == 0 && merged.Count != 0)
                     {
                         Point[] largest = GetLargestContour([..merged]);
 
                         Rect rect = Cv2.BoundingRect(largest);
 
-                        if (rect.Width > 20 && rect.Height > 20)
+                        if (rect.Width > 15 && rect.Height > 15)
                         {
                             Mat cut2 = cut.SubMat(rect);
 
                             int borderSize = 15;
 
                             cut2 = cut2.CopyMakeBorder(borderSize, borderSize, borderSize, borderSize, BorderTypes.Constant, Scalar.White);
+
+                            cut2 = ManipolazioneImmagini.ClearImage(cut2);
 
                             Mat dilateKernel = Mat.Ones(MatType.CV_8U, [2, 2]);
 
@@ -158,7 +156,10 @@ namespace riconoscimento_numeri.classes
                             }
 
                             //Console.WriteLine($"Confidence: {prediction.Confidence}");
-                            number = prediction.Number;
+                            if(prediction.Confidence > 0)
+                            {
+                                predictions.Add(prediction);
+                            }
                         }
 
                         merged.Remove(largest);
@@ -168,7 +169,7 @@ namespace riconoscimento_numeri.classes
 
                 //Console.WriteLine($"Number: {number}");
 
-                numbers.Add(number);
+                numbers.Add([.. predictions]);
 
             }
 
@@ -177,7 +178,7 @@ namespace riconoscimento_numeri.classes
 
         private static TesseractPrediction RunPrediction(Mat image)
         {
-            TesseractPrediction prediction = new() { Confidence = 0, Number = -1};
+            TesseractPrediction prediction = new() { Confidence = 0, Number = "NO"};
             
             engine.SetVariable("tessedit_char_whitelist", "0123456789");
             engine.DefaultPageSegMode = PageSegMode.SingleLine;
@@ -187,7 +188,7 @@ namespace riconoscimento_numeri.classes
             
             string text = page.GetText();
             if (int.TryParse(text, out int found)){
-                prediction.Number = found;
+                prediction.Number = found.ToString();
                 prediction.Confidence = page.GetMeanConfidence();
             }
 
@@ -210,7 +211,7 @@ namespace riconoscimento_numeri.classes
             return largest;
         }
 
-        private static bool AreClose(Point[] c1, Point[] c2, double threshold = 40)
+        private static bool AreClose(Point[] c1, Point[] c2, double threshold = 10)
         {
             Rect Rect1 = Cv2.BoundingRect(c1);
             Rect Rect2 = Cv2.BoundingRect(c2);
@@ -225,10 +226,6 @@ namespace riconoscimento_numeri.classes
 
             bool horizontal = (L2R1 || L1R2) || (L1L2 || R1R2);
 
-            if (horizontal)
-            {
-                return horizontal;
-            }
 
             bool T1B2 = Math.Abs(Rect1.Top - Rect2.Bottom) < threshold;
             bool T2B1 = Math.Abs(Rect1.Bottom - Rect2.Top) < threshold;
@@ -238,7 +235,7 @@ namespace riconoscimento_numeri.classes
 
             bool vertical = (T1B2 || T2B1) || (T1T2 || B1B2);
 
-            return vertical;
+            return horizontal && vertical;
         }
 
         private static List<Point[]> MergeContours(List<Point[]> contours, double threshold = 40)
