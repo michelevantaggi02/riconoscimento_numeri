@@ -1,5 +1,6 @@
 ﻿using OpenCvSharp;
 using riconoscimento_numeri.classes;
+using riconoscimento_numeri.classes.DeepSort;
 using SkiaSharp;
 using Tesseract;
 using YoloDotNet.Models;
@@ -21,49 +22,12 @@ class Program {
 
         string path = Path.Combine(PROJECT_DIR, IMG_PATH, @"test_audi.png");
 
-        //riconoscimento.recognize(path);
+        Matcher DeepSortMatcher = new(@"models\yolov8m.onnx", @"models\FastReidVeRi.onnx");
+
 
         var watch = System.Diagnostics.Stopwatch.StartNew();
 
-        /*YoloDetection[] detections = riconoscimento.recognize_video(@"C:\Users\michi\Desktop\riconoscimento_numeri\vids\corti\video1.mp4");
-
-        watch.Stop();
-
-        long yoloTime = watch.ElapsedMilliseconds;
-
-        watch.Restart();
-
-        foreach (YoloDetection detection in detections)
-        {
-            int[] numbers = RiconoscimentoTesseract.Recognize(detection);
-
-            for (int i = 0; i < numbers.Length; i++)
-            {
-                if (numbers[i] == -1)
-                {
-                    continue;
-                }
-
-                ObjectDetection det = detection.Detections[i];
-                Cv2.PutText(detection.Image, numbers[i].ToString(), new Point(det.BoundingBox.Left, det.BoundingBox.Top), HersheyFonts.HersheySimplex, 1, Scalar.Black, 4);
-                Cv2.PutText(detection.Image, numbers[i].ToString(), new Point(det.BoundingBox.Left, det.BoundingBox.Top), HersheyFonts.HersheySimplex, 1, Scalar.White, 3);
-            }
-
-
-            Console.WriteLine("Detected numbers: ");
-            Console.WriteLine(String.Join(", ", numbers));
-
-            Cv2.ImShow("test", detection.Image);
-            Cv2.WaitKey(0);
-            Cv2.DestroyAllWindows();
-        }
-
-        watch.Stop();
-        long tesseractTime = watch.ElapsedMilliseconds;
-
-        watch.Restart();
-
-        Mat[] images = detections.Select(detections => detections.Image).ToArray();*/
+        
 
         List<YoloDetection> detections = new List<YoloDetection>();
 
@@ -76,72 +40,79 @@ class Program {
 
         List<Mat> images = [];
 
-        HashSet<int> passati = [];
+        HashSet<string> prevFrame = [];
 
         for (int i = 1; i <= frames; i++)
         {
             watch.Restart();
-            using var image = SKImage.FromEncodedData(@"C:\Users\michi\Desktop\riconoscimento_numeri\vids\corti\frames\video1\" + $"{i}.jpeg");
-            watch.Stop();
-
-            fileReadTime += watch.ElapsedMilliseconds;
-
-            watch.Restart();
-
-            var result = riconoscimento.model.RunObjectDetection(image);
-
-            using SKBitmap bitmap = SKBitmap.FromImage(image);
-
-            SKPixmap pixmap = new();
-
-            if (!bitmap.PeekPixels(pixmap))
-            {
-                throw new Exception("Impossibile ottenere i pixel");
-            }
-
-            IntPtr data = pixmap.GetPixels();
-
-            Mat mat = Mat.FromPixelData(bitmap.Height, bitmap.Width, MatType.CV_8UC4, data);
-
-            Cv2.CvtColor(mat, mat, ColorConversionCodes.BGRA2BGR);
-            YoloDetection detection = new YoloDetection
-            {
-                Detections = result.Where(x => x.Label.Name.Equals("car")).ToList(),
-                Image = mat,
-            };
+            (List<Track> tracks, YoloDetection detection) = DeepSortMatcher.Run(@"C:\Users\michi\Desktop\riconoscimento_numeri\vids\corti\frames\video1\" + $"{i}.jpeg");
 
             watch.Stop();
+
 
             detections.Add( detection );
             yoloTime += watch.ElapsedMilliseconds;
 
             watch.Restart();
 
-            int[] numbers = RiconoscimentoTesseract.Recognize(detection);
+            TesseractPrediction[][] numbers = RiconoscimentoTesseract.Recognize(detection);
 
             watch.Stop();
 
+            HashSet<string> currentFrame = [];
+
             foreach (var item in numbers)
             {
-                passati.Add(item);
+                foreach(var prediction in item)
+                {
+                    if (prediction.Number != "NO")
+                    {
+                        foreach (var item1 in prevFrame)
+                        {
+                            if(item1.Contains(prediction.Number) || prediction.Number.Contains(item1))
+                            {
+                                currentFrame.Add(item1);
+                            }
+                        }
+                        currentFrame.Add(prediction.Number);
+                    }
+                }
             }
+
+            prevFrame = currentFrame;
 
             tesseractTime += watch.ElapsedMilliseconds;
 
             watch.Restart();
 
+            Console.WriteLine("----------------------------------------------");
+            Console.WriteLine("Lengths:");
+            Console.WriteLine($"Detections: {detection.Detections.Count}");
+            Console.WriteLine($"Tracks: {tracks.Count}");
+            Console.WriteLine($"Numbers: {numbers.Length}");
+            Console.WriteLine("----------------------------------------------");
+
             for (int j = 0; j < numbers.Length; j++)
             {
-                if (numbers[j] != -1)
+                if (numbers[j].Length != 0)
                 {
                     ObjectDetection det = detection.Detections[j];
-                    Cv2.PutText(detection.Image, numbers[j].ToString(), new Point(det.BoundingBox.Left + (det.BoundingBox.Width /3), det.BoundingBox.Top + (det.BoundingBox.Height / 3)), HersheyFonts.HersheySimplex, 2, Scalar.Black, 6);
-                    Cv2.PutText(detection.Image, numbers[j].ToString(), new Point(det.BoundingBox.Left + (det.BoundingBox.Width / 3), det.BoundingBox.Top + (det.BoundingBox.Height / 3)), HersheyFonts.HersheySimplex, 2, Scalar.White, 2);
-                    Cv2.PutText(detection.Image, String.Join(",", passati), new Point(5, detection.Image.Height - 10), HersheyFonts.HersheySimplex, 1, Scalar.Black, 10);
-                    Cv2.PutText(detection.Image, String.Join(",", passati), new Point(5, detection.Image.Height - 10), HersheyFonts.HersheySimplex, 1, Scalar.White, 2);
+
+                    TesseractPrediction maxPred = numbers[j].MaxBy(x => x.Confidence)!;
+                    Cv2.PutText(detection.Image, maxPred.Number, new Point(det.BoundingBox.Left + (det.BoundingBox.Width /3), det.BoundingBox.Top + (det.BoundingBox.Height / 3)), HersheyFonts.HersheySimplex, 2, Scalar.Black, 6);
+                    Cv2.PutText(detection.Image, maxPred.Number, new Point(det.BoundingBox.Left + (det.BoundingBox.Width / 3), det.BoundingBox.Top + (det.BoundingBox.Height / 3)), HersheyFonts.HersheySimplex, 2, Scalar.White, 2);
+                    Cv2.PutText(detection.Image, String.Join(",", currentFrame), new Point(5, detection.Image.Height - 10), HersheyFonts.HersheySimplex, 1, Scalar.Black, 10);
+                    Cv2.PutText(detection.Image, String.Join(",", currentFrame), new Point(5, detection.Image.Height - 10), HersheyFonts.HersheySimplex, 1, Scalar.White, 2);
                 }
 
                 
+            }
+
+            for(int j =0; j < tracks.Count; j++)
+            {
+                Track track = tracks[j];
+                Cv2.PutText(detection.Image, $"ID: {track.id}", new Point(track.currentBounds.Left + (track.currentBounds.Width), track.currentBounds.Top + (track.currentBounds.Height)), HersheyFonts.HersheySimplex, 2, Scalar.Black, 6);
+                Cv2.PutText(detection.Image, $"ID: {track.id}", new Point(track.currentBounds.Left + (track.currentBounds.Width), track.currentBounds.Top + (track.currentBounds.Height)), HersheyFonts.HersheySimplex, 2, Scalar.White, 2);
             }
             images.Add(detection.Image);
 
