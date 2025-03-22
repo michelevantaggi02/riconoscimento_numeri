@@ -6,14 +6,17 @@ using OpenCvSharp;
 
 namespace riconoscimento_numeri.classes
 {
-    internal class RiconoscimentoYolo
+    /// <summary>
+    /// YoloDotNet implementation.
+    /// </summary>
+    internal class YoloRecognizer
     {
-
+        
         public Yolo model;
 
 
 
-        public RiconoscimentoYolo(string yoloPath = @"models\yolov8m.onnx")
+        public YoloRecognizer(string yoloPath = @"models\yolov8m.onnx")
         {
             model = new Yolo(new YoloOptions
             {
@@ -23,6 +26,12 @@ namespace riconoscimento_numeri.classes
             });
         }
 
+
+        /// <summary>
+        /// Automatically recognizes a single image or a directory of images
+        /// </summary>
+        /// <param name="path"></param>
+        /// <returns>Array of detections</returns>
         public YoloDetection[] recognize(string path)
         {
             FileAttributes attributes = File.GetAttributes(path);
@@ -37,6 +46,12 @@ namespace riconoscimento_numeri.classes
             }
         }
 
+        /// <summary>
+        /// Recognizes all images in a directory
+        /// </summary>
+        /// <param name="dir_path"></param>
+        /// <returns>Array of detections</returns>
+        /// <exception cref="Exception">Given path is a file not a directory</exception>
         public YoloDetection[] recognize_directory(string dir_path)
         {
             FileAttributes attributes = File.GetAttributes(dir_path);
@@ -58,6 +73,12 @@ namespace riconoscimento_numeri.classes
             return [.. detections];
         }
 
+        /// <summary>
+        /// Recognizes a single image file
+        /// </summary>
+        /// <param name="image_path"></param>
+        /// <returns>Detection informations</returns>
+        /// <exception cref="Exception">Given path is not a file</exception>
         public YoloDetection recognize_image(string image_path)
         {
             FileAttributes attributes = File.GetAttributes(image_path);
@@ -84,18 +105,24 @@ namespace riconoscimento_numeri.classes
 
             Mat mat = Mat.FromPixelData(bitmap.Height, bitmap.Width, MatType.CV_8UC4, data);
 
+            //We don't need the alpha channel
             Cv2.CvtColor(mat, mat, ColorConversionCodes.BGRA2BGR);
             
-            //save_result(image, image_path, result);
 
             return new YoloDetection
             {
-                Detections = result.Where(x => x.Label.Name.Equals("car")).ToList(),
+                Detections = result.Where(x => x.Label.Name.Equals("car") || x.Label.Name.Equals("truck")).ToList(),
                 Image = mat,
             };
 
         }
 
+        /// <summary>
+        /// Recognizes a video file, not recommended since it's slow
+        /// </summary>
+        /// <param name="video_path"></param>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
         public YoloDetection[] recognize_video(string video_path)
         {
             FileAttributes attributes = File.GetAttributes(video_path);

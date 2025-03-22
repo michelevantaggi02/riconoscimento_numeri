@@ -1,13 +1,15 @@
-﻿using System.Formats.Asn1;
-using OpenCvSharp;
+﻿using OpenCvSharp;
 using YoloDotNet.Models;
 
 namespace riconoscimento_numeri.classes.DeepSort
 {
+    /// <summary>
+    /// DeepSort implementation.
+    /// </summary>
     public class Matcher
     {
         private List<Track> tracks;
-        private RiconoscimentoYolo yoloPredictor;
+        private YoloRecognizer yoloPredictor;
         private FastReID reidAppExtractor;
 
         private int trackedId = 0;
@@ -17,11 +19,17 @@ namespace riconoscimento_numeri.classes.DeepSort
 
         public Matcher(string yoloPath, string fastReIDPath)
         {
-            yoloPredictor = new RiconoscimentoYolo(yoloPath);
+            yoloPredictor = new YoloRecognizer(yoloPath);
             reidAppExtractor = new FastReID(fastReIDPath);
 
             tracks = [];
 
+        }
+
+        public void Dispose()
+        {
+            yoloPredictor.model.Dispose();
+            reidAppExtractor.session.Dispose();
         }
 
         public (List<Track>, YoloDetection detections) Run(string path)
@@ -81,7 +89,7 @@ namespace riconoscimento_numeri.classes.DeepSort
 
         private void AddNewTrack(Rect bounds, Detail details, int id)
         {
-            Track track = new(id, bounds, details, 1920);
+            Track track = new(id, bounds, details, 2560);
             tracks.Add(track);
         }
 
@@ -93,7 +101,7 @@ namespace riconoscimento_numeri.classes.DeepSort
             {
                 Rect predict = track.PredictNextBounds();
 
-                if (predict.X >= track.trackLimit)
+                if (predict.Right >= track.trackLimit)
                 {
                     toRemove.Add(track);
                     Console.WriteLine("Removing outside of frame");
@@ -229,7 +237,7 @@ namespace riconoscimento_numeri.classes.DeepSort
             List<Track> confirmed = [];
             foreach (Track track in tracks)
             {
-                if (track.consecutiveHits >= 1 && track.missedFrames == 0)
+                if (track.consecutiveHits > 1 && track.missedFrames == 0)
                 {
                     confirmed.Add(track);
                 }

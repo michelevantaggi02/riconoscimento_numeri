@@ -9,7 +9,7 @@ namespace riconoscimento_numeri.classes.DeepSort
 
     internal class FastReID
     {
-        private InferenceSession session;
+        public InferenceSession session;
         private string inputName = "batched_inputs.1";
         private string outputName = "924";
         private int[] inputShape;
@@ -17,8 +17,6 @@ namespace riconoscimento_numeri.classes.DeepSort
         private int inputBufferSize;
         private int outputBufferSize;
         private ArrayPool<float> pool;
-
-
 
         public FastReID(string modelPath)
         {

@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Numerics;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Numerics;
 using OpenCvSharp;
 
 namespace riconoscimento_numeri.classes.DeepSort
@@ -72,6 +67,21 @@ namespace riconoscimento_numeri.classes.DeepSort
         }
 
 
+        public void Draw(Mat image)
+        {
+
+            foreach (Rect rect in history)
+            {
+                Cv2.DrawMarker(image, rect.BottomRight, Scalar.Green, MarkerTypes.Cross, 10);
+            }
+
+            Cv2.Rectangle(image, currentBounds, Scalar.Red, 2);
+            Cv2.PutText(image, $"ID: {id}", currentBounds.BottomRight, HersheyFonts.HersheySimplex, 1, Scalar.Black, 6);
+            Cv2.PutText(image, $"ID: {id}", currentBounds.BottomRight, HersheyFonts.HersheySimplex, 1, Scalar.White, 2);
+
+
+        }
+
 
         //TODO: CHECK IMPLEMENTATION https://github.com/KQTENQK/MOT-DeepSort-CS/blob/main/src/MOT.CORE/Matchers/Trackers/KalmanTracker.cs
         public Rect PredictNextBounds()
@@ -91,11 +101,18 @@ namespace riconoscimento_numeri.classes.DeepSort
                 predictedNextBounds = currentBounds;
                 return currentBounds;
             }
-            Vector2 last = new(history[^1].X, history[^1].Y);
-            Vector2 beforeLast = new(history[^2].X, history[^2].Y);
-            Vector2 velocity = last - beforeLast;
-            Vector2 next = last + velocity;
-            predictedNextBounds = new Rect((int)next.X, (int)next.Y, currentBounds.Width, currentBounds.Height);
+
+            Rect last = history[^1];
+            Rect beforeLast = history[^2];
+            int widthChange = last.Width - beforeLast.Width;
+            int heightChange = last.Height - beforeLast.Height;
+
+            int velocityX = last.Left - beforeLast.Left;
+            int velocityY = last.Top - beforeLast.Top;
+
+
+
+            predictedNextBounds = new Rect(last.Left + velocityX, last.Top + velocityY, last.Width + widthChange, last.Height + heightChange);
 
             Console.WriteLine($"{id} Predicted: ({predictedNextBounds.Left},{predictedNextBounds.Top})({predictedNextBounds.Right},{predictedNextBounds.Bottom})");
             return predictedNextBounds;

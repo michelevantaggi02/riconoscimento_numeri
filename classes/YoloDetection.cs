@@ -4,19 +4,28 @@ using YoloDotNet.Models;
 
 namespace riconoscimento_numeri.classes
 {
-    public class YoloDetection
+
+    /// <summary>
+    /// Result of running a single image with Yolo
+    /// </summary>
+    public class YoloDetection()
     {
 
+        /// <summary>
+        /// List of detections with their bounding boxes
+        /// </summary>
         public List<ObjectDetection> Detections { get; init; }
-        public String ImagePath { get; init; }
 
+        /// <summary>
+        /// OpenCV image object
+        /// </summary>
         public Mat Image { get; init; }
 
-        public YoloDetection()
-        {
-            // Costruttore
-        }
 
+        /// <summary>
+        /// Returns subset of image of every detections
+        /// </summary>
+        /// <returns></returns>
         public Mat[] GetCuts()
         {
             Mat[] mats = new Mat[Detections.Count];
@@ -28,6 +37,11 @@ namespace riconoscimento_numeri.classes
             return mats;
         }
 
+        /// <summary>
+        /// Returns a cut of the image based on the detection index
+        /// </summary>
+        /// <param name="index"></param>
+        /// <returns></returns>
         public Mat GetCut(int index)
         {
             var detection = Detections[index];
@@ -35,6 +49,11 @@ namespace riconoscimento_numeri.classes
             return cut;
         }
 
+        /// <summary>
+        /// Converts detection bounding box to OpenCV Rect
+        /// </summary>
+        /// <param name="detection"></param>
+        /// <returns></returns>
         public static Rect GetBounds(ObjectDetection detection)
         {
             SKRectI bounds = detection.BoundingBox;
@@ -45,12 +64,6 @@ namespace riconoscimento_numeri.classes
             return new Rect(left, top, bounds.Width, bounds.Height);
         }
 
-        public Mat Cut(Rect bounds)
-        {
-
-            var cut = Image.SubMat(bounds.Top, bounds.Bottom, bounds.Left, bounds.Right);
-            return cut;
-        }
 
 
 

@@ -1,15 +1,15 @@
-﻿using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Collections.Concurrent;
 using OpenCvSharp;
 
 namespace riconoscimento_numeri.classes
 {
-    public class ManipolazioneImmagini
+    public class ImageManipulation
     {
+        /// <summary>
+        /// Turns the image into a mask keeping only white values
+        /// </summary>
+        /// <param name="image">original image in BGR format</param>
+        /// <returns>Converted image</returns>
         public static Mat Threshold(Mat image)
         {
 
@@ -23,6 +23,12 @@ namespace riconoscimento_numeri.classes
             return hsv.InRange(lower_bound, upper_bound);
         }
 
+
+        /// <summary>
+        /// Checks for white squares in the image
+        /// </summary>
+        /// <param name="image">Thresholded image</param>
+        /// <returns>List of squares resembling the sticker</returns>
         public static Mat[] FindSquares(Mat image)
         {
             Mat[] squares = CalcEpsilon(image);
@@ -42,8 +48,8 @@ namespace riconoscimento_numeri.classes
 
 
                 Mat result = ApplyFilters(checkMat);
-                int borderSize = 15;
-                result = result.CopyMakeBorder(borderSize, borderSize, borderSize, borderSize, BorderTypes.Constant, Scalar.White);
+                /*int borderSize = 15;
+                result = result.CopyMakeBorder(borderSize, borderSize, borderSize, borderSize, BorderTypes.Constant, Scalar.White);*/
 
                 cuts.Add(result);
             }
@@ -72,6 +78,13 @@ namespace riconoscimento_numeri.classes
 
             return image;
         }
+
+        /// <summary>
+        /// Checks for white squares having dimensions corresponding to those of the sticker
+        /// </summary>
+        /// <param name="thres">Thresholded image</param>
+        /// <param name="e">epsilon value for approximation</param>
+        /// <returns>List of squares found</returns>
         private static Mat[] CalcEpsilon(Mat thres, double e = 0.07110000000000001)
         {
 
@@ -86,16 +99,16 @@ namespace riconoscimento_numeri.classes
                 Point[] approx = Cv2.ApproxPolyDP(cont, epsilon, true);
 
 
-                
-
                 RotatedRect areaRect = Cv2.MinAreaRect(approx);
                 Rect bounds = Cv2.BoundingRect(approx);
                 double area = Cv2.ContourArea(approx);
 
+                //admitting only squares with a certain area and dimensions
                 if (bounds.Width > 30 && bounds.Width < 100 && bounds.Height > 20 && bounds.Height < 100 && area > 600)
                 {
                     Mat cut = new Mat(thres, bounds);
 
+                    //rotating even a little helps Tesseract with recognition
                     Mat rotationMat = Cv2.GetRotationMatrix2D(new Point2f(bounds.Width / 2, bounds.Height / 2), - (areaRect.Angle % 10) / 2, 1);
 
                     Mat result = cut.WarpAffine(rotationMat, new Size(bounds.Width, bounds.Height), InterpolationFlags.Nearest, borderValue: Scalar.White);
@@ -107,22 +120,38 @@ namespace riconoscimento_numeri.classes
 
         }
 
+
+        /// <summary>
+        /// Applies filters to the image to remove noise and clear from small imperfections
+        /// </summary>
+        /// <param name="image">Image to filter</param>
+        /// <returns>Filtered Image</returns>
         private static Mat ApplyFilters(Mat image)
         {
+            //Blur to obfuscate small imperfections
             Mat blurred = new();
             Cv2.GaussianBlur(image, blurred, new Size(5, 5), 0);
 
+
+            //Local Histogram Equalization to remove noise
             CLAHE cLAHE = Cv2.CreateCLAHE(2.0, new Size(5, 5));
             Mat enhanced = new();
 
             cLAHE.Apply(blurred, enhanced);
 
+
+            //Threshold to convert from grayscale to black and white only
             Mat enhThres = new();
             Cv2.Threshold(enhanced, enhThres, 0, 255, ThresholdTypes.Otsu);
 
             return ClearImage(enhThres);
         }
 
+        /// <summary>
+        /// Clears the image from black contours that doesn't resemble the numbers
+        /// </summary>
+        /// <param name="image">Image to clear</param>
+        /// <returns>Image with unwanted borders removed</returns>
         public static Mat ClearImage(Mat image)
         {
             Cv2.BitwiseNot(image, image);
@@ -131,6 +160,11 @@ namespace riconoscimento_numeri.classes
             return image;
         }
 
+        /// <summary>
+        /// Removes contours that doesn't resemble the numbers
+        /// </summary>
+        /// <param name="image"></param>
+        /// <returns>Cleared Image</returns>
         private static Mat ParallelClearContours(Mat image)
         {
             image.FindContours(out Point[][] contours, out _, RetrievalModes.List, ContourApproximationModes.ApproxNone);
@@ -138,6 +172,8 @@ namespace riconoscimento_numeri.classes
             
             ConcurrentBag<Point[]> cleared = new();
 
+
+            //Parallelizing the process
             Parallel.ForEach(contours, (cont) =>
             {
                 Point[]? clearedCont = CheckPoints(cont, image.Width, image.Height);
@@ -152,6 +188,11 @@ namespace riconoscimento_numeri.classes
             return image;
         }
 
+        /// <summary>
+        /// Removes small and big contours
+        /// </summary>
+        /// <param name="c"></param>
+        /// <returns>null if contour is ok, @c if contour area is not accepted</returns>
         private static Point[]? RemoveSmall(Point[] c)
         {
             double area = Cv2.ContourArea(c);
@@ -164,7 +205,14 @@ namespace riconoscimento_numeri.classes
                 return null;
             }
         }
-
+        /// <summary>
+        /// Checks if contours should be eliminated from image.
+        /// Removes all contours that are too big or too small, and all contours that are too close to the image borders
+        /// </summary>
+        /// <param name="c">contour to check</param>
+        /// <param name="W">image width</param>
+        /// <param name="H">image heigth</param>
+        /// <returns>null if contour is ok, @c if contour is to be removed</returns>
         private static Point[]? CheckPoints(Point[] c, int W, int H)
         {
             Point[]? small = RemoveSmall(c);
@@ -176,12 +224,11 @@ namespace riconoscimento_numeri.classes
             else
             {
                 bool Eliminable = false;
-                double DistanzaMinima = Double.MaxValue;
+                double MinDistance = Double.MaxValue;
 
                 foreach (Point p in c)
                 {
 
-                    //Console.WriteLine($"{p.X}, {p.Y}");
                     if (p.X < 2 || p.Y < 2 || p.X >= W - 1)
                     {
                         Eliminable = true;
@@ -189,14 +236,14 @@ namespace riconoscimento_numeri.classes
                     else
                     {
                         double dist = Math.Sqrt(Math.Pow(p.X - (W / 2), 2) + Math.Pow(p.Y - (H / 2), 2));
-                        if (dist < DistanzaMinima)
+                        if (dist < MinDistance)
                         {
-                            DistanzaMinima = dist;
+                            MinDistance = dist;
                         }
                     }
                 }
 
-                if(Eliminable && DistanzaMinima > 17)
+                if(Eliminable && MinDistance > 17)
                 {
                     return c;
                 }

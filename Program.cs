@@ -6,32 +6,20 @@ using Tesseract;
 using YoloDotNet.Models;
 
 
-class Program {
-
-
-
-    const string IMG_PATH = @"imgs\";
-
-
-    
+class Program { 
 
     static void Main(string[] args) {
 
-        RiconoscimentoYolo riconoscimento = new();
-        string PROJECT_DIR = Directory.GetParent(Environment.CurrentDirectory).Parent.Parent.FullName;
-
-        string path = Path.Combine(PROJECT_DIR, IMG_PATH, @"test_audi.png");
 
         Matcher DeepSortMatcher = new(@"models\yolov8m.onnx", @"models\FastReidVeRi.onnx");
 
 
         var watch = System.Diagnostics.Stopwatch.StartNew();
 
-        
-
         List<YoloDetection> detections = new List<YoloDetection>();
 
-        int frames = 234;
+        //For dimonstration purposes we will use a fixed number of frames
+        int frames = 90;
 
         long fileReadTime = 0;
         long yoloTime = 0;
@@ -42,10 +30,15 @@ class Program {
 
         HashSet<string> prevFrame = [];
 
+        string framesPath = @"C:\Users\michi\Desktop\riconoscimento_numeri\vids\corti\frames\";
+        string videoName = @"video4\";
+
         for (int i = 1; i <= frames; i++)
         {
             watch.Restart();
-            (List<Track> tracks, YoloDetection detection) = DeepSortMatcher.Run(@"C:\Users\michi\Desktop\riconoscimento_numeri\vids\corti\frames\video1\" + $"{i}.jpeg");
+
+            //Recognize cars and apply DeepSort
+            (List<Track> tracks, YoloDetection detection) = DeepSortMatcher.Run(framesPath + videoName + $"{i}.jpeg");
 
             watch.Stop();
 
@@ -55,12 +48,14 @@ class Program {
 
             watch.Restart();
 
-            TesseractPrediction[][] numbers = RiconoscimentoTesseract.Recognize(detection);
+            //Recognize numbers with Tesseract
+            TesseractPrediction[][] numbers = TesseractNumberRecognizer.Recognize(detection);
 
             watch.Stop();
 
             HashSet<string> currentFrame = [];
 
+            //Check if a similar number is in the previous frame
             foreach (var item in numbers)
             {
                 foreach(var prediction in item)
@@ -92,6 +87,7 @@ class Program {
             Console.WriteLine($"Numbers: {numbers.Length}");
             Console.WriteLine("----------------------------------------------");
 
+            //Draw the results on the image
             for (int j = 0; j < numbers.Length; j++)
             {
                 if (numbers[j].Length != 0)
@@ -99,6 +95,9 @@ class Program {
                     ObjectDetection det = detection.Detections[j];
 
                     TesseractPrediction maxPred = numbers[j].MaxBy(x => x.Confidence)!;
+
+                    Cv2.Rectangle(detection.Image, YoloDetection.GetBounds(det), Scalar.Green, 2);
+
                     Cv2.PutText(detection.Image, maxPred.Number, new Point(det.BoundingBox.Left + (det.BoundingBox.Width /3), det.BoundingBox.Top + (det.BoundingBox.Height / 3)), HersheyFonts.HersheySimplex, 2, Scalar.Black, 6);
                     Cv2.PutText(detection.Image, maxPred.Number, new Point(det.BoundingBox.Left + (det.BoundingBox.Width / 3), det.BoundingBox.Top + (det.BoundingBox.Height / 3)), HersheyFonts.HersheySimplex, 2, Scalar.White, 2);
                     Cv2.PutText(detection.Image, String.Join(",", currentFrame), new Point(5, detection.Image.Height - 10), HersheyFonts.HersheySimplex, 1, Scalar.Black, 10);
@@ -111,8 +110,9 @@ class Program {
             for(int j =0; j < tracks.Count; j++)
             {
                 Track track = tracks[j];
-                Cv2.PutText(detection.Image, $"ID: {track.id}", new Point(track.currentBounds.Left + (track.currentBounds.Width), track.currentBounds.Top + (track.currentBounds.Height)), HersheyFonts.HersheySimplex, 2, Scalar.Black, 6);
-                Cv2.PutText(detection.Image, $"ID: {track.id}", new Point(track.currentBounds.Left + (track.currentBounds.Width), track.currentBounds.Top + (track.currentBounds.Height)), HersheyFonts.HersheySimplex, 2, Scalar.White, 2);
+                //Cv2.PutText(detection.Image, $"ID: {track.id}", new Point(track.currentBounds.Left + (track.currentBounds.Width), track.currentBounds.Top + (track.currentBounds.Height)), HersheyFonts.HersheySimplex, 2, Scalar.Black, 6);
+                //Cv2.PutText(detection.Image, $"ID: {track.id}", new Point(track.currentBounds.Left + (track.currentBounds.Width), track.currentBounds.Top + (track.currentBounds.Height)), HersheyFonts.HersheySimplex, 2, Scalar.White, 2);
+                track.Draw(detection.Image);
             }
             images.Add(detection.Image);
 
@@ -132,7 +132,7 @@ class Program {
 
         Console.WriteLine("writing video");
 
-        VideoWriter writer = new("C:\\Users\\michi\\Desktop\\riconoscimento_numeri\\vids\\corti\\video1_scritto.avi", FourCC.DIVX, framerate, new Size(width, height));
+        VideoWriter writer = new(framesPath + "video_scritto.avi", FourCC.DIVX, framerate, new Size(width, height));
 
         foreach (Mat image in images)
         {
@@ -155,24 +155,10 @@ class Program {
         Console.WriteLine($"FPS: {detections.Count} / ({fileSec:F2})s ({yoloSec:F2}s + {tesseractSec:F2}s)  = { (detections.Count / (fileSec + yoloSec + tesseractSec)):F2}");
 
         Console.WriteLine($"Avg retrieve: {(fileReadTime / detections.Count)}ms, Avg Yolo: {(yoloTime / detections.Count)}ms, Avg Tesseract: {(tesseractTime / detections.Count)}ms");
-        riconoscimento.model.Dispose();
-        RiconoscimentoTesseract.engine.Dispose();
 
+        TesseractNumberRecognizer.engine.Dispose();
 
-        //test tesseract
-        /*using TesseractEngine engine = new(@"models", "ita", EngineMode.Default);
-
-        //engine.SetVariable("tessedit_char_whitelist", "0123456789");
-        //engine.SetVariable("outputbase", "digits");
-
-        using Pix pixImage = Pix.LoadFromFile(Path.Combine(IMG_PATH, "test_numero_largo.PNG"));
-
-
-        using var page = engine.Process(pixImage);
-
-        string text = page.GetText();
-
-        Console.WriteLine($"{text}");*/
+        DeepSortMatcher.Dispose();
 
     }
 
