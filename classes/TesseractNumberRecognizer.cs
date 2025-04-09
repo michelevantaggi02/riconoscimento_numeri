@@ -19,14 +19,6 @@ namespace riconoscimento_numeri.classes
         {
             Mat thres = ImageManipulation.Threshold(detection.Image);
 
-            /*Cv2.ImShow("thres", thres);
-            int key = Cv2.WaitKey(0);
-            Cv2.DestroyAllWindows();*/
-            int key = 0;
-
-
-            //Console.WriteLine($"Detection count: {detection.Detections.Count}");
-
             List<TesseractPrediction[]> numbers = [];
 
 
@@ -35,7 +27,6 @@ namespace riconoscimento_numeri.classes
 
                 Rect bounds = YoloDetection.GetBounds(obj);
 
-                //Console.WriteLine($"Bounds converted: Left {bounds.Left}, Top {bounds.Top}, Width {bounds.Width}, Height {bounds.Height}");
 
                 Rect cutRect = new(bounds.Left, bounds.Top, bounds.Width, bounds.Height);
 
@@ -48,26 +39,16 @@ namespace riconoscimento_numeri.classes
 
                 }
 
-                //Console.WriteLine($"Rows: {cutRect.Top}-{cutRect.Bottom}, Cols: {cutRect.Left} - {cutRect.Right}");
-
                 Mat cut = new(thres, cutRect);
 
                 Mat[] squares = ImageManipulation.FindSquares(cut);
                 List<TesseractPrediction> predictions = [];
 
-                //Console.WriteLine($"Squares: {squares.Length}");
 
                 // Checks if the square is a number
                 foreach (Mat square in squares)
                 {
                     TesseractPrediction prediction = RunPrediction(square);
-                    if (key == 13)
-                    {
-                        Console.WriteLine(prediction.Number);
-                        Cv2.ImShow("square", square);
-                        Cv2.WaitKey(0);
-                        Cv2.DestroyAllWindows();
-                    }
 
 
 
@@ -80,7 +61,6 @@ namespace riconoscimento_numeri.classes
                 // Tries to find the number in a different way
                 if (predictions.Count == 0)
                 {
-                    //Console.WriteLine("Checking with different method");
                     Mat kernel = Mat.Ones(MatType.CV_8U, [2, 3]);
 
                     cut = cut.MorphologyEx(MorphTypes.Close, kernel);
@@ -89,10 +69,6 @@ namespace riconoscimento_numeri.classes
 
                     Cv2.FindContours(cut, out var contours, out var hierarchy, RetrievalModes.List, ContourApproximationModes.ApproxNone);
 
-                    Mat conv = new();
-                    Cv2.CvtColor(cut, conv, ColorConversionCodes.GRAY2RGB);
-
-                    Cv2.DrawContours(conv, contours, -1, Scalar.Red, 1);
 
                     List<Point[]> filtered = [];
 
@@ -100,35 +76,18 @@ namespace riconoscimento_numeri.classes
                     {
                         Rect rect = Cv2.BoundingRect(c);
 
-                        Cv2.Rectangle(conv, rect, Scalar.Red, 1);
-
                         if (((double)rect.Height) / ((double)rect.Width) > 1.2)
                         {
-                            Cv2.Rectangle(conv, rect, Scalar.Blue, 2);
                             filtered.Add(c);
                         }
 
 
-                    }
-                    if (key == 13)
-                    {
-                        Cv2.ImShow("premerge", conv);
-                        Cv2.WaitKey(0);
-                        Cv2.DestroyAllWindows();
                     }
                     List<Point[]> merged = MergeContours([.. filtered]);
 
                     foreach (var p in merged)
                     {
                         Rect b = Cv2.BoundingRect(p);
-                        Cv2.Rectangle(conv, b, Scalar.Green, 3);
-                    }
-
-                    if (key == 13)
-                    {
-                        Cv2.ImShow("square", conv);
-                        Cv2.WaitKey(0);
-                        Cv2.DestroyAllWindows();
                     }
 
                     //Stops at the first number it finds
@@ -153,16 +112,8 @@ namespace riconoscimento_numeri.classes
                             cut2 = cut2.Dilate(dilateKernel);
 
                             TesseractPrediction prediction = RunPrediction(cut2);
-                            if (key == 13)
-                            {
-                                Console.WriteLine(prediction.Number);
-                                Console.WriteLine(prediction.Confidence);
-                                Cv2.ImShow("square", cut2);
-                                Cv2.WaitKey(0);
-                                Cv2.DestroyAllWindows();
-                            }
 
-                            //Console.WriteLine($"Confidence: {prediction.Confidence}");
+                            //Sometimes Tesseract returns a number with confidence 0
                             if (prediction.Confidence >= 0)
                             {
                                 predictions.Add(prediction);
@@ -174,9 +125,6 @@ namespace riconoscimento_numeri.classes
                     }
                 }
 
-                //Console.WriteLine($"Number: {number}");
-
-                Console.WriteLine($"Numbers length: {predictions.Count}");
 
                 numbers.Add([.. predictions]);
 
@@ -278,7 +226,6 @@ namespace riconoscimento_numeri.classes
 
             while (changes)
             {
-                Console.WriteLine($"Contours length: {contours.Count}");
                 changes = false;
                 List<Point[]> mergedContours = [];
                 taken = new bool[contours.Count];
@@ -287,7 +234,6 @@ namespace riconoscimento_numeri.classes
                 {
                     if (taken[i])
                     {
-                        Console.WriteLine(contours[i]);
                         continue;
                     }
 
@@ -303,10 +249,8 @@ namespace riconoscimento_numeri.classes
                             Point[] next = contours[j];
                             if (AreClose(current, next))
                             {
-                                Console.WriteLine($"Merging 2 contours..");
 
                                 newContour = [.. newContour, .. next];
-                                Console.WriteLine($"{current.Length}'+ {next.Length} = {newContour.Length}");
                                 taken[j] = true;
                                 changes = true;
                             }
