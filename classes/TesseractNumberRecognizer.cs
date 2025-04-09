@@ -146,7 +146,7 @@ namespace riconoscimento_numeri.classes
 
                             cut2 = cut2.CopyMakeBorder(borderSize, borderSize, borderSize, borderSize, BorderTypes.Constant, Scalar.White);
 
-                            cut2 = ImageManipulation.ClearImage(cut2);
+                            //cut2 = ImageManipulation.ClearImage(cut2);
 
                             Mat dilateKernel = Mat.Ones(MatType.CV_8U, [2, 2]);
 
@@ -156,13 +156,14 @@ namespace riconoscimento_numeri.classes
                             if (key == 13)
                             {
                                 Console.WriteLine(prediction.Number);
+                                Console.WriteLine(prediction.Confidence);
                                 Cv2.ImShow("square", cut2);
                                 Cv2.WaitKey(0);
                                 Cv2.DestroyAllWindows();
                             }
 
                             //Console.WriteLine($"Confidence: {prediction.Confidence}");
-                            if (prediction.Confidence > 0)
+                            if (prediction.Confidence >= 0)
                             {
                                 predictions.Add(prediction);
                             }
@@ -174,6 +175,8 @@ namespace riconoscimento_numeri.classes
                 }
 
                 //Console.WriteLine($"Number: {number}");
+
+                Console.WriteLine($"Numbers length: {predictions.Count}");
 
                 numbers.Add([.. predictions]);
 
@@ -189,7 +192,7 @@ namespace riconoscimento_numeri.classes
         /// <returns>Prediction result</returns>
         private static TesseractPrediction RunPrediction(Mat image)
         {
-            TesseractPrediction prediction = new() { Confidence = 0, Number = "NO" };
+            TesseractPrediction prediction = new() { Confidence = -1, Number = "NO" };
 
             engine.SetVariable("tessedit_char_whitelist", "0123456789");
             engine.DefaultPageSegMode = PageSegMode.SingleLine;

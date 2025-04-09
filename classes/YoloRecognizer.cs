@@ -107,11 +107,14 @@ namespace riconoscimento_numeri.classes
 
             //We don't need the alpha channel
             Cv2.CvtColor(mat, mat, ColorConversionCodes.BGRA2BGR);
-            
+
+            List<ObjectDetection> detections = result.Where(x => x.Label.Name.Equals("car") || x.Label.Name.Equals("truck")).ToList();
+
+            detections = filterIntersecting(detections);
 
             return new YoloDetection
             {
-                Detections = result.Where(x => x.Label.Name.Equals("car") || x.Label.Name.Equals("truck")).ToList(),
+                Detections = detections,
                 Image = mat,
             };
 
@@ -183,5 +186,46 @@ namespace riconoscimento_numeri.classes
 
             return [.. detections];
         }
+    
+        private List<ObjectDetection> filterIntersecting(List<ObjectDetection> detections)
+        {
+            List<ObjectDetection> filtered = new();
+            bool[] ignored = new bool[detections.Count];
+            for (int i = 0; i < detections.Count; i++)
+            {
+
+                for (int j = i + 1; j < detections.Count; j++)
+                {
+                    
+                    Rect bound1 = YoloDetection.GetBounds(detections[i]);
+                    Rect bound2 = YoloDetection.GetBounds(detections[j]);
+
+
+                    Rect intersection = bound1.Intersect(bound2);
+
+                    if((intersection.Width > bound1.Width * 0.5 && intersection.Height > bound1.Height * 0.5) || (intersection.Width > bound2.Width * 0.5 && intersection.Height > bound2.Height * 0.5))
+                    {
+                        int area1 = bound1.Width * bound1.Height;
+                        int area2 = bound2.Width * bound2.Height;
+
+                        if (area1 > area2)
+                        {
+                            ignored[j] = true;
+                        }
+                        else
+                        {
+                            ignored[i] = true;
+                        }
+
+                    }
+                }
+                if (!ignored[i])
+                {
+                    filtered.Add(detections[i]);
+                }
+            }
+            return filtered;
+        }
     }
+
 }
