@@ -82,8 +82,7 @@ namespace riconoscimento_numeri.classes.DeepSort
 
         }
 
-
-        //TODO: CHECK IMPLEMENTATION https://github.com/KQTENQK/MOT-DeepSort-CS/blob/main/src/MOT.CORE/Matchers/Trackers/KalmanTracker.cs
+        
         public Rect PredictNextBounds()
         {
             if(missedFrames > 0)
@@ -95,8 +94,6 @@ namespace riconoscimento_numeri.classes.DeepSort
 
             if (history.Count < 2)
             {
-                Console.WriteLine("Not enough history, giving current");
-                Console.WriteLine($"{id} Predicted: ({currentBounds.Left},{currentBounds.Top})({currentBounds.Right},{currentBounds.Bottom})");
 
                 predictedNextBounds = currentBounds;
                 return currentBounds;
@@ -114,7 +111,6 @@ namespace riconoscimento_numeri.classes.DeepSort
 
             predictedNextBounds = new Rect(last.Left + velocityX, last.Top + velocityY, last.Width + widthChange, last.Height + heightChange);
 
-            Console.WriteLine($"{id} Predicted: ({predictedNextBounds.Left},{predictedNextBounds.Top})({predictedNextBounds.Right},{predictedNextBounds.Bottom})");
             return predictedNextBounds;
         }
 

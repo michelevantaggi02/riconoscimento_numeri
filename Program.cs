@@ -6,8 +6,12 @@ using Tesseract;
 using YoloDotNet.Models;
 
 
-class Program { 
+class Program {
 
+    /// <summary>
+    /// Reads every frame in the folder, applies DeepSort and Tesseract to recognize numbers
+    /// </summary>
+    /// <param name="args"></param>
     static void Main(string[] args) {
 
 
@@ -31,7 +35,7 @@ class Program {
         HashSet<string> prevFrame = [];
 
         string framesPath = @"C:\Users\michi\Desktop\riconoscimento_numeri\vids\corti\frames\";
-        string videoName = @"video4\";
+        string videoName = @"video1\";
 
         for (int i = 1; i <= frames; i++)
         {
@@ -98,8 +102,11 @@ class Program {
 
                     Cv2.Rectangle(detection.Image, YoloDetection.GetBounds(det), Scalar.Green, 2);
 
+                    //Draw number on the car
                     Cv2.PutText(detection.Image, maxPred.Number, new Point(det.BoundingBox.Left + (det.BoundingBox.Width /3), det.BoundingBox.Top + (det.BoundingBox.Height / 3)), HersheyFonts.HersheySimplex, 2, Scalar.Black, 6);
                     Cv2.PutText(detection.Image, maxPred.Number, new Point(det.BoundingBox.Left + (det.BoundingBox.Width / 3), det.BoundingBox.Top + (det.BoundingBox.Height / 3)), HersheyFonts.HersheySimplex, 2, Scalar.White, 2);
+                    
+                    //Draw number list on the bottom of the image
                     Cv2.PutText(detection.Image, String.Join(",", currentFrame), new Point(5, detection.Image.Height - 10), HersheyFonts.HersheySimplex, 1, Scalar.Black, 10);
                     Cv2.PutText(detection.Image, String.Join(",", currentFrame), new Point(5, detection.Image.Height - 10), HersheyFonts.HersheySimplex, 1, Scalar.White, 2);
                 }
@@ -107,15 +114,14 @@ class Program {
                 
             }
 
+            //Draw deepsort tracks
             for(int j =0; j < tracks.Count; j++)
             {
-                Track track = tracks[j];
-                //Cv2.PutText(detection.Image, $"ID: {track.id}", new Point(track.currentBounds.Left + (track.currentBounds.Width), track.currentBounds.Top + (track.currentBounds.Height)), HersheyFonts.HersheySimplex, 2, Scalar.Black, 6);
-                //Cv2.PutText(detection.Image, $"ID: {track.id}", new Point(track.currentBounds.Left + (track.currentBounds.Width), track.currentBounds.Top + (track.currentBounds.Height)), HersheyFonts.HersheySimplex, 2, Scalar.White, 2);
-                track.Draw(detection.Image);
+                tracks[j].Draw(detection.Image);
             }
-            images.Add(detection.Image);
 
+
+            images.Add(detection.Image);
             watch.Stop();
 
             drawTime += watch.ElapsedMilliseconds;
@@ -142,6 +148,8 @@ class Program {
         writer.Release();
 
         watch.Stop();
+
+        //Print statistics
 
         long videoTime = watch.ElapsedMilliseconds;
 

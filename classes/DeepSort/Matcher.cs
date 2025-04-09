@@ -47,18 +47,15 @@ namespace riconoscimento_numeri.classes.DeepSort
 
             if(tracks.Count == 0)
             {
-                Console.WriteLine("No tracks, adding new ones");
                 AddNewTracks(detections.Detections, detectionDetails);
                 return (tracks, detections);
             }
 
-            Console.WriteLine($"Current tracks: {tracks.Count}");
 
             PredictBoundingBoxes();
 
             (List<(int, int)> matched, List<int> unmatched) = Match(detections, detectionDetails);
 
-            Console.WriteLine($"Matched: {matched.Count}, Unmatched: {unmatched.Count}");
 
             UpdateTracks(matched, detections, detectionDetails);
 
@@ -71,7 +68,6 @@ namespace riconoscimento_numeri.classes.DeepSort
 
             List<Track> confirmed = ConfirmTracks();
 
-            Console.WriteLine($"Confirmed: {confirmed.Count}");
 
             RemoveOutdatedTracks();
 
@@ -104,7 +100,6 @@ namespace riconoscimento_numeri.classes.DeepSort
                 if (predict.Right >= track.trackLimit)
                 {
                     toRemove.Add(track);
-                    Console.WriteLine("Removing outside of frame");
                 }
 
 
@@ -200,13 +195,6 @@ namespace riconoscimento_numeri.classes.DeepSort
 
             float inverseIntersecArea = unionArea - intersectArea;
 
-            Console.WriteLine($"Prediction: ({predict.Left},{predict.Top})({predict.Right},{predict.Bottom})");
-            Console.WriteLine($"Real: ({real.Left},{real.Top})({real.Right},{real.Bottom})");
-
-            Console.WriteLine($"Intersect: {intersectArea}, Union: {unionArea}, Inverse: {inverseIntersecArea}");
-
-
-
             if (inverseIntersecArea < float.Epsilon)
             {
                 return 0;
@@ -240,10 +228,6 @@ namespace riconoscimento_numeri.classes.DeepSort
                 if (track.consecutiveHits > 1 && track.missedFrames == 0)
                 {
                     confirmed.Add(track);
-                }
-                else
-                {
-                    Console.WriteLine($"{track.id} Not confirmed: {track.consecutiveHits} hits, {track.missedFrames} missed");
                 }
             }
             return confirmed;
